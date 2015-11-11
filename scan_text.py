@@ -108,13 +108,21 @@ def find_trigrams(words, n, freq=10):
     tcf.apply_freq_filter(freq)
     return tcf.nbest(TrigramAssocMeasures.likelihood_ratio, n)
       
-def tokens_length(tokens):
+def words_length(words):
     '''token length frequency distribution'''
-    return nltk.FreqDist([len(t) for t in tokens])
+    return nltk.FreqDist([len(w) for w in words])
     
-def tokens_with_length(tokens, length):
+def words_with_length(words, length):
     '''finds token with length equal to length'''
-    return [t for t in tokens if len(t) == length]
+    return [w for w in words if len(w) == length]
+    
+def sents_length(sents):
+    '''token length frequency distribution'''
+    return nltk.FreqDist([len(word_tokenize(s)) for s in sents])
+    
+def sents_with_length(sents, length):
+    '''finds token with length equal to length'''
+    return [s for s in sents if len(word_tokenize(s)) == length]
     
 def get_POS(words):
     '''part of speech statistics'''
@@ -134,7 +142,7 @@ def plot_most_common(words, n):
     
 def plot_words_length(words):
     '''plot words length'''
-    wl = tokens_length(words)
+    wl = words_length(words)
     lengths = sorted([i for i in wl])
     freqs = [wl.freq(i) for i in wl]    
     
@@ -152,7 +160,7 @@ def plot_words_length(words):
     
 def plot_sents_length(sents):
     '''plot sentences length'''
-    sl = tokens_length(sents)
+    sl = sents_length(sents)
     lengths = sorted([i for i in sl])
     freqs   = [sl.freq(i) for i in sl]    
     

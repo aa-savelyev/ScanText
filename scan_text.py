@@ -3,6 +3,14 @@ import matplotlib.pyplot as pyplot
 import nltk
 import string
 from nltk.corpus import stopwords
+from nltk.collocations import BigramCollocationFinder
+from nltk.metrics import BigramAssocMeasures
+from nltk.collocations import TrigramCollocationFinder
+from nltk.metrics import TrigramAssocMeasures
+
+import pymorphy2
+morph = pymorphy2.MorphAnalyzer()
+
 stopset = set(stopwords.words('russian'))
 stopset = stopset.union({'это','весь','свой','который'})
 stopset_light = {'а','и','но','как','что','который',
@@ -14,12 +22,12 @@ stopset_light = {'а','и','но','как','что','который',
                  'быть','весь','это','этот','тот',''
                  }
 
-from nltk.collocations import BigramCollocationFinder
-from nltk.metrics import BigramAssocMeasures
-from nltk.collocations import TrigramCollocationFinder
-from nltk.metrics import TrigramAssocMeasures
-
-import pymorphy2
+ru_POS = {'NOUN':'Cуществительные','INFN':'Глаголы (инфинитивы)','ADJF':'Прилагательные',
+          'ADVB':'Наречия','NUMR':'Числительные','NPRO':'Местоимения','PREP':'Предлоги',
+          'CONJ':'Союзы','PRCL':'Частицы','INTJ':'Междометия',
+          'ADJS':'Краткие прилагательные','COMP':'Компаративы','VERB':'Глаголы (личная форма)',
+          'PRTF':'Причастия','PRTS':'Краткие причастия','GRND':'Деепричастия',
+          'PRED':'Предикативы',None:'Неопределено'}
 
 def make_russian_plots():
     '''change font to russian-friendly'''
@@ -30,8 +38,7 @@ def make_russian_plots():
 ### ---work with words--- ###
    
 def word_tokenize(text):
-    '''text word tokenizator'''
-    
+    '''text word tokenizator'''  
     # word tokenization
     words = nltk.word_tokenize(text)
     
@@ -58,14 +65,16 @@ def word_tokenize(text):
 
 def sent_tokenize(text):
     '''text sentence tokenizator'''
-    return
+    # sentence tokenization
+    sent = nltk.sent_tokenize(text, language = 'russian')
+    return sent
     
-def normalize(text):
-    '''makes morphological analisis'''
-    morph = pymorphy2.MorphAnalyzer()
-    words = [morph.parse(w)[0].normal_form for w in text]
-    return nltk.Text(words)
-    
+def normalize(words):
+    '''makes morphological analysis'''
+    parts = [morph.parse(w)[0] for w in words]
+    words = [p.normal_form for p in parts if p.tag.POS != None]
+    POS = nltk.FreqDist([p.tag.POS for p in parts if p.tag.POS != None])
+    return nltk.Text(words), POS
     
 ### ---work with texts--- ###
 
@@ -77,51 +86,57 @@ def filter_stops_light(word):
     '''filter for light stop words set'''
     return word in stopset_light
     
-def apply_filter(text, filter_to_use):
+def apply_filter(words, filter_to_use):
     '''filters text with filter_to_use'''
-    return nltk.Text([w for w in text if not filter_to_use(w)])
+    return nltk.Text([w for w in words if not filter_to_use(w)])
     
-def lexical_diversity(text):
+def lexical_diversity(words):
     '''lexical diversity'''
-    return len(set(text)) / len(text)
+    words_norm = normalize(words)
+    vocab = words_norm.vocab()
+    return len(words) / len(vocab)
     
-def find_bigrams(text, n, freq=10):
+def find_bigrams(words, n, freq=10):
     ''''find n most popular bigrams'''
-    bcf = BigramCollocationFinder.from_words(text)
+    bcf = BigramCollocationFinder.from_words(words)
     bcf.apply_freq_filter(freq)
     return bcf.nbest(BigramAssocMeasures.likelihood_ratio, n)
     
-def find_trigrams(text, n, freq=10):
+def find_trigrams(words, n, freq=10):
     ''''find n most popular trigrams'''
-    tcf = TrigramCollocationFinder.from_words(text)
+    tcf = TrigramCollocationFinder.from_words(words)
     tcf.apply_freq_filter(freq)
     return tcf.nbest(TrigramAssocMeasures.likelihood_ratio, n)
+      
+def tokens_length(tokens):
+    '''token length frequency distribution'''
+    return nltk.FreqDist([len(t) for t in tokens])
     
-def words_with_length(text, length):
-    '''finds word with length more then length'''
-    return [w for w in text.vocab() if len(w) == length]
+def tokens_with_length(tokens, length):
+    '''finds token with length equal to length'''
+    return [t for t in tokens if len(t) == length]
     
-def words_length(text):
-    '''word length frequency distribution'''
-    return nltk.FreqDist([len(w) for w in text.vocab()])
+def get_POS(words):
+    '''part of speech statistics'''
+    POS = nltk.FreqDist([morph.parse(w)[0].tag.POS for w in words])
+    return POS
     
-### ---plots--- ###
+### ---output--- ###
     
-def plot_most_common(text, n):
+def plot_most_common(words, n):
     '''plot dispersion for n most common words'''
-    voc = text.vocab()
-    fd = voc.most_common(n)
-    voc_most_common = [i[0] for i in fd]
-    print(voc_most_common)
-    text.dispersion_plot(voc_most_common)
+    vocab = words.vocab()
+    fd = vocab.most_common(n)
+    vocab_most_common = [i[0] for i in fd]
+    print(vocab_most_common)
+    words.dispersion_plot(vocab_most_common)
     return
     
-def plot_words_length(text):
+def plot_words_length(words):
     '''plot words length'''
-    wl = words_length(text)
-    lengths = [i for i in wl]
-    freqs = [wl.freq(i) for i in wl]
-    
+    wl = tokens_length(words)
+    lengths = sorted([i for i in wl])
+    freqs = [wl.freq(i) for i in wl]    
     
 #    pyplot.figure(figsize=(10,6))
     pyplot.plot(lengths, freqs)
@@ -130,14 +145,48 @@ def plot_words_length(text):
     pyplot.ylabel("Frequency")
     pyplot.show()
     
+    mean = sum([lengths[i]*freqs[i] for i in range(len(wl))])
+    print("Most popular length = {0}".format(wl.most_common()[0][0]))
+    print("Mean length         = {0:.2f}".format(mean))
     return
-
-### ---io--- ###
+    
+def plot_sents_length(sents):
+    '''plot sentences length'''
+    sl = tokens_length(sents)
+    lengths = sorted([i for i in sl])
+    freqs   = [sl.freq(i) for i in sl]    
+    
+#    pyplot.figure(figsize=(10,6))
+    pyplot.plot(lengths, freqs)
+    pyplot.title("Sentence Length Frequency")
+    pyplot.xlabel("Sentence Length")
+    pyplot.ylabel("Frequency")
+    pyplot.show()
+    
+    mean = sum([lengths[i]*freqs[i] for i in range(len(sl))])
+    print("Most popular length = {0}".format(sl.most_common()[0][0]))
+    print("Mean length         = {0:.2f}".format(mean))
+    return
+    
+#def POS_rus(POS):
+#    '''returns russian name of the'''
+#    switch (POS):
+#        case
+    
+def print_POS(POS):
+    '''print part of speech statistics'''
+    S = sum([POS[i] for i in POS])
+    POS_sorted = POS.most_common()
+    
+    for part in POS_sorted:
+        print("{0:<25} {1:.2%}".format(ru_POS[part[0]], part[1]/S))
+            
+    return
+## ---io--- ###
 
 def read_file(file):
     '''read text file'''  
-    
-    print(file)
+#    print(file)
     try:
         f = open(file, 'r')
         text = f.read()
@@ -146,40 +195,45 @@ def read_file(file):
         text = f.read()
     f.close()
     
-    # tokenize text
-    text = word_tokenize(text)
-    
     return text
     
 ###### ---usage--- ######
     
-def analize(file):
-    '''analize text file'''  
-    
+def analyze(file):
+    '''analyze text file'''  
     # read file
-    text_init = read_file(file)
-    text_filter = apply_filter(text_init, filter_stops)
-    text = normalize(text_init)
-    text = apply_filter(text, filter_stops)
+    text = read_file(file)
+    sents = sent_tokenize(text)
+    words = word_tokenize(text)
+    words_norm, POS = normalize(words)
     
     # statistics
-    vocab = text.vocab()
+    vocab = words_norm.vocab()
     hapaxes = vocab.hapaxes()
     print('\n')
-    print('text length           = {0} words'.format(len(text_init)))
-    print('vocabulary length     = {0} words'.format(len(vocab)))
-    print('lexical diversity     = {0}'.format(lexical_diversity(text)))
-    print('percentage of hapaxes = {0}'.format(len(hapaxes)/len(vocab)))
+    print("Text length           = {0} words".format(len(words)))
+    print("Vocabulary length     = {0} words".format(len(vocab)))
+    print("Lexical diversity     = {0:.2}".format(len(words)/len(vocab)))
+    print("Percentage of hapaxes = {0:.1%}\n".format(len(hapaxes)/len(vocab)))
+    
+    # parts of speech
+    POS.plot()
+    print_POS(POS)
     
     # collocations
-    print('bigrams: {0}\n'.format(find_bigrams(text_filter, 10)))
-#    print('trigrams: {0}\n'.format(find_trigrams(text_filter, 10)))
+    words_filter = apply_filter(words, filter_stops)
+    print('\n')
+    print("Bigrams: {0}\n".format(find_bigrams(words_filter, 10)))
+#    print("Trigrams: {0}\n".format(find_trigrams(words_filter, 10)))
     
     # plots
     make_russian_plots()
-    plot_words_length(text)
-    plot_most_common(text, 10)
+    plot_words_length(words_filter)
+    plot_sents_length(sents)
     
-    return text
+    words_norm_filter = apply_filter(words_norm, filter_stops)
+    plot_most_common(words_norm_filter, 10)
+    
+    return words_norm_filter
     
     

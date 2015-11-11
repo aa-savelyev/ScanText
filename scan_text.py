@@ -29,10 +29,10 @@ def make_russian_plots():
 
 ### ---work with words--- ###
    
-def tokenize(text):
-    '''text tokenizator'''
+def word_tokenize(text):
+    '''text word tokenizator'''
     
-    # tokenization
+    # word tokenization
     words = nltk.word_tokenize(text)
     
     # delete punctuation
@@ -55,6 +55,10 @@ def tokenize(text):
     text = nltk.text.Text(words)
     
     return text
+
+def sent_tokenize(text):
+    '''text sentence tokenizator'''
+    return
     
 def normalize(text):
     '''makes morphological analisis'''
@@ -143,7 +147,7 @@ def read_file(file):
     f.close()
     
     # tokenize text
-    text = tokenize(text)
+    text = word_tokenize(text)
     
     return text
     
@@ -159,18 +163,23 @@ def analize(file):
     text = apply_filter(text, filter_stops)
     
     # statistics
+    vocab = text.vocab()
+    hapaxes = vocab.hapaxes()
     print('\n')
-    print('text length       = {0} words'.format(len(text_init)))
-    print('vocabulary length = {0} words'.format(len(text.vocab())))
-    print('lexical dive1rsity = {0}\n'.format(lexical_diversity(text)))
+    print('text length           = {0} words'.format(len(text_init)))
+    print('vocabulary length     = {0} words'.format(len(vocab)))
+    print('lexical diversity     = {0}'.format(lexical_diversity(text)))
+    print('percentage of hapaxes = {0}'.format(len(hapaxes)/len(vocab)))
     
     # collocations
     print('bigrams: {0}\n'.format(find_bigrams(text_filter, 10)))
 #    print('trigrams: {0}\n'.format(find_trigrams(text_filter, 10)))
     
     # plots
+    make_russian_plots()
     plot_words_length(text)
     plot_most_common(text, 10)
-    return
+    
+    return text
     
     

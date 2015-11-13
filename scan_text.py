@@ -1,4 +1,4 @@
-import matplotlib.pyplot as pyplot
+import matplotlib.pyplot as pylab
 
 import nltk
 import string
@@ -112,7 +112,7 @@ def words_length(words):
     '''token length frequency distribution'''
     return nltk.FreqDist([len(w) for w in words])
     
-def words_with_length(words, length):
+def word_with_length(words, length):
     '''finds token with length equal to length'''
     return [w for w in words if len(w) == length]
     
@@ -120,7 +120,7 @@ def sents_length(sents):
     '''token length frequency distribution'''
     return nltk.FreqDist([len(word_tokenize(s)) for s in sents])
     
-def sents_with_length(sents, length):
+def sent_with_length(sents, length):
     '''finds token with length equal to length'''
     return [s for s in sents if len(word_tokenize(s)) == length]
     
@@ -147,11 +147,12 @@ def plot_words_length(words):
     freqs = [wl.freq(i) for i in wl]    
     
 #    pyplot.figure(figsize=(10,6))
-    pyplot.plot(lengths, freqs)
-    pyplot.title("Word Length Frequency")
-    pyplot.xlabel("Word Length")
-    pyplot.ylabel("Frequency")
-    pyplot.show()
+    pylab.grid(True, color='silver')
+    pylab.plot(lengths, freqs, linewidth=2)
+    pylab.title("Word Length Frequency")
+    pylab.xlabel("Word Length")
+    pylab.ylabel("Frequency")
+    pylab.show()
     
     mean = sum([lengths[i]*freqs[i] for i in range(len(wl))])
     print("Most popular length = {0}".format(wl.most_common()[0][0]))
@@ -165,21 +166,17 @@ def plot_sents_length(sents):
     freqs   = [sl.freq(i) for i in sl]    
     
 #    pyplot.figure(figsize=(10,6))
-    pyplot.plot(lengths, freqs)
-    pyplot.title("Sentence Length Frequency")
-    pyplot.xlabel("Sentence Length")
-    pyplot.ylabel("Frequency")
-    pyplot.show()
+    pylab.grid(True, color='silver')
+    pylab.plot(lengths, freqs, linewidth=2)
+    pylab.title("Sentence Length Frequency")
+    pylab.xlabel("Sentence Length")
+    pylab.ylabel("Frequency")
+    pylab.show()
     
     mean = sum([lengths[i]*freqs[i] for i in range(len(sl))])
     print("Most popular length = {0}".format(sl.most_common()[0][0]))
     print("Mean length         = {0:.2f}".format(mean))
     return
-    
-#def POS_rus(POS):
-#    '''returns russian name of the'''
-#    switch (POS):
-#        case
     
 def print_POS(POS):
     '''print part of speech statistics'''
@@ -236,6 +233,7 @@ def analyze(file):
     
     # plots
     make_russian_plots()
+    
     plot_words_length(words_filter)
     plot_sents_length(sents)
     

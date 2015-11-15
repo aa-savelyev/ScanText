@@ -1,0 +1,5 @@
+/.ipynb_checkpoints/
+/reports/
+/doc/
+/__pycache__/
+*.ipynb

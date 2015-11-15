@@ -1,5 +1,5 @@
+import math
 import matplotlib.pyplot as pylab
-
 import nltk
 import string
 from nltk.corpus import stopwords
@@ -71,9 +71,10 @@ def sent_tokenize(text):
     
 def normalize(words):
     '''makes morphological analysis'''
-    parts = [morph.parse(w)[0] for w in words]
-    words = [p.normal_form for p in parts if p.tag.POS != None]
-    POS = nltk.FreqDist([p.tag.POS for p in parts if p.tag.POS != None])
+    parses = [morph.parse(w)[0] for w in words]
+#    words = [p.normal_form for p in parses if p.tag.POS != None]
+    words = [p.normal_form for p in parses]
+    POS = nltk.FreqDist([p.tag.POS for p in parses if p.tag.POS != None])
     return nltk.Text(words), POS
     
 ### ---work with texts--- ###
@@ -92,9 +93,8 @@ def apply_filter(words, filter_to_use):
     
 def lexical_diversity(words):
     '''lexical diversity'''
-    words_norm = normalize(words)
-    vocab = words_norm.vocab()
-    return len(words) / len(vocab)
+    vocab = words.vocab()
+    return len(vocab) / len(words)
     
 def find_bigrams(words, n, freq=10):
     ''''find n most popular bigrams'''
@@ -130,6 +130,36 @@ def get_POS(words):
     return POS
     
 ### ---output--- ###
+    
+def Zipf(x, L, l):
+    '''Zipf's law normalized to length of text
+        L - length of text
+        l - length of vocabulary
+    ''' 
+    A = L / math.log(l)
+    p = -1
+    return A*x**p 
+
+def plot_Zipf(words, start=1, end=25):
+    '''plot Zipf's law'''
+    vocab = words.vocab()
+    mc = vocab.most_common(end+1)
+    L = len(words)
+    l = len(vocab)
+    
+    numbers = [x for x in range(start, end+1)]
+    counts_Zipf = [Zipf(x, L, l) for x in range(start,end+1)]
+    counts = [w[1] for w in mc[start:]]
+    
+    pylab.grid(True, color='silver')
+    pylab.plot(numbers, counts_Zipf, color='k')
+    pylab.plot(numbers, counts, linewidth=2)
+    pylab.title("Word Frequency Distribution")
+    pylab.xlabel("Words' Number")
+    pylab.ylabel("Counts")
+    pylab.show()
+#    vocab.plot(n)
+    return
     
 def plot_most_common(words, n):
     '''plot dispersion for n most common words'''
@@ -178,6 +208,27 @@ def plot_sents_length(sents):
     print("Mean length         = {0:.2f}".format(mean))
     return
     
+def plot_sents(sents, short, long):
+    '''plot short and long sentences'''
+    
+    lengths = ['<='+str(short), '>='+str(long)]
+    points = [(x,0) for x in range(len(sents))
+              if len(word_tokenize(sents[x])) <= short]
+                    
+    points += [(x,1) for x in range(len(sents))
+              if len(word_tokenize(sents[x])) >= long]
+    if points:
+        x, y = list(zip(*points))
+    else:
+        x = y = ()
+    pylab.plot(x, y, "b|", scalex=.1)
+    pylab.yticks(list(range(len(lengths))), lengths, color="b")
+    pylab.ylim(-1, len(lengths))
+#    pylab.title(title)
+    pylab.xlabel("Sentence Offset")
+    pylab.show()
+    return
+    
 def print_POS(POS):
     '''print part of speech statistics'''
     S = sum([POS[i] for i in POS])
@@ -185,7 +236,6 @@ def print_POS(POS):
     
     for part in POS_sorted:
         print("{0:<25} {1:.2%}".format(ru_POS[part[0]], part[1]/S))
-            
     return
 ## ---io--- ###
 
@@ -199,7 +249,6 @@ def read_file(file):
         f = open(file, encoding='UTF8')
         text = f.read()
     f.close()
-    
     return text
     
 ###### ---usage--- ######
@@ -210,36 +259,37 @@ def analyze(file):
     text = read_file(file)
     sents = sent_tokenize(text)
     words = word_tokenize(text)
+    words_filter = apply_filter(words, filter_stops)
     words_norm, POS = normalize(words)
+    words_norm_filter = apply_filter(words_norm, filter_stops)
+    make_russian_plots()
     
     # statistics
     vocab = words_norm.vocab()
     hapaxes = vocab.hapaxes()
+    L = len(words_norm)
+    l = len(vocab)
     print('\n')
-    print("Text length           = {0} words".format(len(words)))
-    print("Vocabulary length     = {0} words".format(len(vocab)))
-    print("Lexical diversity     = {0:.2}".format(len(words)/len(vocab)))
-    print("Percentage of hapaxes = {0:.1%}\n".format(len(hapaxes)/len(vocab)))
+    print("Text length       = {0} words".format(L))
+    print("Vocabulary length = {0} words".format(l))
+    print("Lexical diversity = {0:.1%}".format(l/L))
+    print("Hapaxes           = {0:.1%}".format(len(hapaxes)/l))
+    
+    plot_sents_length(sents)
+    plot_words_length(words_filter)
     
     # parts of speech
     POS.plot()
     print_POS(POS)
     
     # collocations
-    words_filter = apply_filter(words, filter_stops)
-    print('\n')
-    print("Bigrams: {0}\n".format(find_bigrams(words_filter, 10)))
+#    print('\n')
+#    print("Bigrams: {0}\n".format(find_bigrams(words_filter, 10)))
 #    print("Trigrams: {0}\n".format(find_trigrams(words_filter, 10)))
     
-    # plots
-    make_russian_plots()
-    
-    plot_words_length(words_filter)
-    plot_sents_length(sents)
-    
-    words_norm_filter = apply_filter(words_norm, filter_stops)
-    plot_most_common(words_norm_filter, 10)
-    
+    # Zipf's law
+    plot_Zipf(words_norm)
+    plot_most_common(words_norm_filter, 15)  
     return words_norm_filter
     
     
